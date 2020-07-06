@@ -1,5 +1,6 @@
 
 import * as express from 'express';
+import { NewUser } from './interfaces';
 
 const app = express();
 const cors = require('cors');
@@ -8,8 +9,7 @@ app.use(cors());
 
 // Start writing Firebase Functions
 // https://firebase.google.com/docs/functions/typescript
-
-import validator = require("./util/validators");
+const { validateLoginData, validateSignupData }= require("./util/validators");
 const { firebase, functions } = require("./util/admin");
 
 const login = (request: any, response: any) => {
@@ -18,8 +18,7 @@ const login = (request: any, response: any) => {
         password: request.body.password
     }
 
-    const { valid, errors } = validator.validateLoginData(user);
-    console.log(user);
+    const { valid, errors } = validateLoginData(user);
     if (!valid) return response
         .status(400)
         .json(errors);
@@ -48,13 +47,14 @@ const login = (request: any, response: any) => {
 };
 
 const createUser = (request: any, response: any) => {
-    const newUser = {
+
+    const newUser : NewUser = {
         email: request.body.email,
         password: request.body.password,
         confirmPassword: request.body.confirmPassword,
-        displayName: request.body.username
+        displayName: request.body.displayName
     };
-    const { valid, errors } = validator.validateSignupData(newUser);
+    const { valid, errors } = validateSignupData(newUser);
 
     if (!valid) return response.status(400).json(errors);
     let token: string, userId: string;
