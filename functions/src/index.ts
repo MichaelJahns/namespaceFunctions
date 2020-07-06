@@ -1,6 +1,31 @@
 
 import * as express from 'express';
+import { NewUser } from './interfaces';
 
+import * as firebase from 'firebase';
+require("firebase/firestore");
+const functions = require('firebase-functions');
+
+const firebaseConfig = {
+    apiKey: functions.config().namespace.key,
+    authDomain: functions.config().namespace.auth_domain,
+    databaseURL: functions.config().namespace.database_url,
+    projectId: functions.config().namespace.project_id,
+    storageBucket: functions.config().namespace.storage_bucket,
+    messagingSenderId: functions.config().namespace.messaging_sender_id,
+    appId: functions.config().namespace.app_id,
+    measurementId: functions.config().namespace.measurement_id
+};
+
+try{
+firebase.initializeApp(firebaseConfig);
+}catch(error){
+    // What can be done
+}
+
+
+
+const db = firebase.firestore();
 const app = express();
 const cors = require('cors');
 app.use(cors());
@@ -8,9 +33,8 @@ app.use(cors());
 
 // Start writing Firebase Functions
 // https://firebase.google.com/docs/functions/typescript
+const { validateLoginData, validateSignupData }= require("./util/validators");
 
-import validator = require("./util/validators");
-const { firebase, functions } = require("./util/admin");
 
 const login = (request: any, response: any) => {
     const user = {
@@ -18,8 +42,7 @@ const login = (request: any, response: any) => {
         password: request.body.password
     }
 
-    const { valid, errors } = validator.validateLoginData(user);
-    console.log(user);
+    const { valid, errors } = validateLoginData(user);
     if (!valid) return response
         .status(400)
         .json(errors);
@@ -48,20 +71,21 @@ const login = (request: any, response: any) => {
 };
 
 const createUser = (request: any, response: any) => {
-    const newUser = {
+
+    const newUser : NewUser = {
         email: request.body.email,
         password: request.body.password,
         confirmPassword: request.body.confirmPassword,
-        displayName: request.body.username
+        displayName: request.body.displayName
     };
-    const { valid, errors } = validator.validateSignupData(newUser);
+    const { valid, errors } = validateSignupData(newUser);
 
     if (!valid) return response.status(400).json(errors);
     let token: string, userId: string;
 
-    firebase
-        .database()
-        .doc(`/users/${newUser.displayName}`)
+    db
+        .collection("users")
+        .doc(`/${newUser.displayName}`)
         .get()
         .then((data: any) => {
             if (data.exists) {
@@ -87,7 +111,7 @@ const createUser = (request: any, response: any) => {
                 createdAt: new Date().toISOString(),
                 userId
             }
-            return firebase.database.doc(`/users/${newUser.displayName}`).set(userCredentials);
+            return db.doc(`/users/${newUser.displayName}`).set(userCredentials);
         })
         .then(() => {
             return response
