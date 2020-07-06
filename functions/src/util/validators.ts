@@ -1,5 +1,4 @@
 import { User, NewUser, UserErrors } from '../interfaces';
-import { functions } from './admin';
 
 const isEmail = (email: string) => {
     const regEx = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
@@ -15,9 +14,6 @@ const isEmpty = (string: string) => {
 const validateSignupData = (data: NewUser) => {
     const errors: UserErrors = {};
 
-    functions.logger.log("Validating signup data", data)
-    functions.logger.log(data)
-    
     if (isEmpty(data.email)) {
         errors.email = 'Must not be empty';
     } else if (!isEmail(data.email)) {
