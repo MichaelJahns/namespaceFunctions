@@ -23,8 +23,6 @@ firebase.initializeApp(firebaseConfig);
     // What can be done
 }
 
-
-
 const db = firebase.firestore();
 const app = express();
 const cors = require('cors');
@@ -78,6 +76,7 @@ const createUser = (request: any, response: any) => {
         confirmPassword: request.body.confirmPassword,
         displayName: request.body.displayName
     };
+    functions.logger.log("Hello from createUser", newUser);
     const { valid, errors } = validateSignupData(newUser);
 
     if (!valid) return response.status(400).json(errors);
