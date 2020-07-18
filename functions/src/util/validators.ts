@@ -1,6 +1,4 @@
 import { User, NewUser, UserErrors } from '../interfaces';
-const functions = require("firebase-functions");
-
 
 const isEmail = (email: string) => {
     const regEx = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
@@ -15,7 +13,6 @@ const isEmpty = (string: string) => {
 };
 
 const validateSignupData = (data: NewUser) => {
-    functions.logger.log("Hello from validateSignUpdata", data);
     const errors: UserErrors = {};
     if (isEmpty(data.email)) {
         errors.email = 'Must not be empty';

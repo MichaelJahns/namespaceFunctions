@@ -1,6 +1,7 @@
 
 import * as express from 'express';
 import { NewUser } from './interfaces';
+import {FirebaseError} from './errors/error';
 
 import * as firebase from 'firebase';
 require("firebase/firestore");
@@ -68,7 +69,7 @@ const login = (request: any, response: any) => {
         });
 };
 
-const createUser = (request: any, response: any) => {
+const createUser = (request: any, response: any, next:any) => {
 
     const newUser : NewUser = {
         email: request.body.email,
@@ -76,7 +77,6 @@ const createUser = (request: any, response: any) => {
         confirmPassword: request.body.confirmPassword,
         displayName: request.body.displayName
     };
-    functions.logger.log("Hello from createUser", newUser);
     const { valid, errors } = validateSignupData(newUser);
 
     if (!valid) return response.status(400).json(errors);
@@ -90,8 +90,8 @@ const createUser = (request: any, response: any) => {
             if (data.exists) {
                 // TODO: I want names like Discord 'Todd@4975'
                 return response
-                    .status(400)
-                    .json({ displayName: `this displayName is already taken` });
+                    .status(500)
+                    .json({ error: `Username already taken` });
             } else {
                 return firebase
                     .auth()
@@ -99,6 +99,7 @@ const createUser = (request: any, response: any) => {
             }
         })
         .then((data: any) => {
+            functions.logger.log(data)
             userId = data.user.uid;
             return data.user.getIdToken();
         })
@@ -120,10 +121,9 @@ const createUser = (request: any, response: any) => {
         .catch((err: any) => {
             console.error(err);
             if (err.code === 'auth/email-already-in-use') {
-                return response
-                    .status(400)
-                    .json({ email: 'Email is already in use' });
+               return next(new FirebaseError(err.message));
             } else {
+                functions.logger.error("Uncaught firebase signup error", err);
                 return response
                     .status(500)
                     .json(err);
