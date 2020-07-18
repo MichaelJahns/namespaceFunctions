@@ -1,7 +1,6 @@
 
 import * as express from 'express';
 import { NewUser } from './interfaces';
-import {FirebaseError} from './errors/error';
 
 import * as firebase from 'firebase';
 require("firebase/firestore");
@@ -68,9 +67,8 @@ const login = (request: any, response: any) => {
                 .json({ error: err.code })
         });
 };
-
-const createUser = (request: any, response: any, next:any) => {
-
+function parceUserFromRequest(request:any , response:any , next: any){
+    console.log("one");
     const newUser : NewUser = {
         email: request.body.email,
         password: request.body.password,
@@ -78,60 +76,80 @@ const createUser = (request: any, response: any, next:any) => {
         displayName: request.body.displayName
     };
     const { valid, errors } = validateSignupData(newUser);
+    if (!valid) return response.status(400).json(errors); 
+    request.user = newUser;
+    next();
+}
 
-    if (!valid) return response.status(400).json(errors);
-    let token: string, userId: string;
+const createUser = (request: any, response: any, next:any) => {
+    console.log("two");
 
     db
         .collection("users")
-        .doc(`/${newUser.displayName}`)
+        .doc(`/${request.user.displayName}`)
         .get()
         .then((data: any) => {
             if (data.exists) {
+                console.log(data);
                 // TODO: I want names like Discord 'Todd@4975'
                 return response
                     .status(500)
-                    .json({ error: `Username already taken` });
+                    .json({ error: `Username already taken` })
+                    .send();
             } else {
                 return firebase
                     .auth()
-                    .createUserWithEmailAndPassword(newUser.email, newUser.password);
+                    .createUserWithEmailAndPassword(request.user.email, request.user.password);
             }
         })
         .then((data: any) => {
-            functions.logger.log(data)
-            userId = data.user.uid;
-            return data.user.getIdToken();
-        })
-        .then((idToken: any) => {
-            token = idToken;
+            request.token = data.user.getIdToken();
             const userCredentials = {
-                email: newUser.email,
-                displayName: newUser.displayName,
+                email: request.user.email,
+                displayName: request.user.displayName,
                 createdAt: new Date().toISOString(),
-                userId
+                userId: data.user.uid
             }
-            return db.doc(`/users/${newUser.displayName}`).set(userCredentials);
+            return db.doc(`/users/${request.user.displayName}`).set(userCredentials);
         })
         .then(() => {
-            return response
-                .status(201)
-                .json({ token });
+            next();
         })
         .catch((err: any) => {
             console.error(err);
             if (err.code === 'auth/email-already-in-use') {
-               return next(new FirebaseError(err.message));
+                response.json({error: err.message})
+                next(handleEmailAlreadyInUseError(request, response));
             } else {
-                functions.logger.error("Uncaught firebase signup error", err);
-                return response
-                    .status(500)
-                    .json(err);
+                // functions.logger.error("Uncaught firebase signup error", err);
+                response.json(err)
+                next(handleUnknownError(request, response));
             }
         });
 };
 
+function RespondSuccessfulCharacterCreation(request:any, response:any){
+    console.log("4: Character successfully created");
+    return response
+    .status(201)
+    .json({"token": request.token });
+}
+
+function handleEmailAlreadyInUseError(request:any, response:any){
+    console.log("3A: handling email collison")
+    return response
+    .status(501)
+    .send();
+}
+
+function handleUnknownError(request:any, response:any){
+    console.log("3Z: Unknown Firebase error")
+    return response
+    .status(502)
+    .send()
+}
+
 app.post('/login', login);
-app.post('/createUser', createUser);
+app.post('/createUser', parceUserFromRequest, createUser, RespondSuccessfulCharacterCreation);
 
 exports.api = functions.https.onRequest(app);
