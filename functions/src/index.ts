@@ -81,6 +81,22 @@ function parceUserFromRequest(request:any , response:any , next: any){
     next();
 }
 
+
+const getUser = (request: any , response: any, next:any) => {
+    console.log(request.body.displayName)
+    db.collection("users").doc(`/${request.body.displayName}`).get()
+    .then((data:any) => {
+        console.log(data)
+        return response.status(400).json(data).send();
+    })
+    .then(() => {
+        next();
+    })
+    .catch((err: any) => {
+        console.error(err);
+    });
+
+}
 const createUser = (request: any, response: any, next:any) => {
     console.log("two");
 
@@ -118,11 +134,10 @@ const createUser = (request: any, response: any, next:any) => {
         .catch((err: any) => {
             console.error(err);
             if (err.code === 'auth/email-already-in-use') {
-                response.json({error: err.message})
                 next(handleEmailAlreadyInUseError(request, response));
             } else {
-                // functions.logger.error("Uncaught firebase signup error", err);
-                response.json(err)
+                functions.logger.error("Uncaught firebase signup error", err);
+                response.json({error: err.message})
                 next(handleUnknownError(request, response));
             }
         });
@@ -139,6 +154,7 @@ function handleEmailAlreadyInUseError(request:any, response:any){
     console.log("3A: handling email collison")
     return response
     .status(501)
+    .write({error: "The email is already in use by another account"})
     .send();
 }
 
@@ -149,6 +165,7 @@ function handleUnknownError(request:any, response:any){
     .send()
 }
 
+app.get('/getUser', getUser)
 app.post('/login', login);
 app.post('/createUser', parceUserFromRequest, createUser, RespondSuccessfulCharacterCreation);
 
